@@ -1,20 +1,36 @@
 import ccxt
 import time
+import os
+from datetime import datetime
 
 # Настройки
 EXCHANGES = ['binance', 'bybit']
-QUOTE = 'USDT'
-CHECK_INTERVAL = 10  # секунд
-THRESHOLD = 0.02  # 2%
+TARGET_CURRENCY = 'USDC'
+CHECK_INTERVAL = 2  # секунд
+DELTA = 0.02  # 2%
+EXCEPTIONS_FILE = 'exceptions.txt'
+MAX_AGE_MS = 1000  # 1 секунда в миллисекундах
 
 
-def get_usdt_markets(exchange):
+def get_target_markets(exchange):
     markets = exchange.load_markets()
-    usdt_pairs = set()
+    target_pairs = set()
     for symbol in markets:
-        if symbol.endswith(f'/{QUOTE}'):
-            usdt_pairs.add(symbol)
-    return usdt_pairs
+        if symbol.endswith(f'/{TARGET_CURRENCY}'):
+            target_pairs.add(symbol)
+    return target_pairs
+
+
+def load_exceptions(filename):
+    if not os.path.exists(filename):
+        return set()
+    with open(filename, 'r', encoding='utf-8') as f:
+        return set(line.strip() for line in f if line.strip())
+
+
+def log(msg):
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f'[{now}] {msg}')
 
 
 def main():
@@ -22,30 +38,48 @@ def main():
     binance = ccxt.binance()
     bybit = ccxt.bybit()
 
-    # Получаем пары с USDT
-    print('Загружаю пары с USDT...')
-    binance_pairs = get_usdt_markets(binance)
-    bybit_pairs = get_usdt_markets(bybit)
+    # Получаем пары с QUOTE
+    log(f'Загружаю пары с {TARGET_CURRENCY}...')
+    binance_pairs = get_target_markets(binance)
+    bybit_pairs = get_target_markets(bybit)
     common_pairs = binance_pairs & bybit_pairs
-    if not common_pairs:
-        print('Нет общих пар с USDT между Binance и Bybit.')
+
+    # Загружаем исключения
+    exceptions = load_exceptions(EXCEPTIONS_FILE)
+    if exceptions:
+        log(f'Исключённые пары: {sorted(exceptions)}')
+    filtered_pairs = common_pairs - exceptions
+    if not filtered_pairs:
+        log('Нет пар для проверки после применения исключений.')
         return
-    print(f'Общие пары: {sorted(common_pairs)}')
+    log(f'Пары для проверки: {sorted(filtered_pairs)}')
 
     while True:
-        print('\nПроверка цен...')
-        for symbol in sorted(common_pairs):
+        log('Проверка цен...')
+        now_ms = int(time.time() * 1000)
+        try:
+            binance_tickers = binance.fetch_tickers(list(filtered_pairs))
+        except Exception as e:
+            log(f'Ошибка массового запроса Binance: {e}')
+            binance_tickers = {}
+        try:
+            bybit_tickers = bybit.fetch_tickers(list(filtered_pairs))
+        except Exception as e:
+            log(f'Ошибка массового запроса Bybit: {e}')
+            bybit_tickers = {}
+        for symbol in sorted(filtered_pairs):
             try:
-                binance_ticker = binance.fetch_ticker(symbol)
-                bybit_ticker = bybit.fetch_ticker(symbol)
-                binance_price = binance_ticker['last']
-                bybit_price = bybit_ticker['last']
-                if binance_price and bybit_price:
-                    diff = abs(binance_price - bybit_price) / min(binance_price, bybit_price)
-                    if diff > THRESHOLD:
-                        print(f'{symbol}: Binance={binance_price}, Bybit={bybit_price}, Разница={diff*100:.2f}%')
+                binance_ticker = binance_tickers.get(symbol, {})
+                bybit_ticker = bybit_tickers.get(symbol, {})
+                binance_price = binance_ticker.get('last')
+                bybit_price = bybit_ticker.get('last')
+                binance_ts = binance_ticker.get('timestamp')
+                bybit_ts = bybit_ticker.get('timestamp')
+                diff = abs(binance_price - bybit_price) / min(binance_price, bybit_price)
+                if diff > DELTA:
+                    log(f'{symbol}: Binance={binance_price} ({binance_ts}), Bybit={bybit_price} ({bybit_ts}), Разница={diff*100:.2f}%')
             except Exception as e:
-                print(f'Ошибка для {symbol}: {e}')
+                log(f'Ошибка для {symbol}: {e}')
         time.sleep(CHECK_INTERVAL)
 
 
