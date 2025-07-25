@@ -6,7 +6,7 @@ from itertools import combinations
 
 # Настройки
 EXCHANGES = ['binance', 'bybit', 'okx']
-TARGET_CURRENCY = 'USDC'
+TARGET_TICKER = 'USDT'
 CHECK_INTERVAL = 2  # секунд
 DELTA = 0.03  # 3%
 EXCEPTIONS_FILE = 'exceptions.txt'
@@ -17,22 +17,27 @@ def get_target_markets(exchange):
     markets = exchange.load_markets()
     target_pairs = set()
     for symbol in markets:
-        if symbol.endswith(f'/{TARGET_CURRENCY}'):
+        if symbol.endswith(f'/{TARGET_TICKER}'):
             target_pairs.add(symbol)
     return target_pairs
 
 
 def load_exceptions(filename):
     if not os.path.exists(filename):
-        return set()
-    exceptions = set()
+        return set(), set()
+    pair_exceptions = set()
+    coin_exceptions = set()
     with open(filename, 'r', encoding='utf-8') as f:
         for line in f:
             # Убираем комментарии и пробелы
             line = line.split('#', 1)[0].replace(' ', '').strip()
-            if line:
-                exceptions.add(line)
-    return exceptions
+            if not line:
+                continue
+            if '/' in line:
+                pair_exceptions.add(line)
+            else:
+                coin_exceptions.add(line)
+    return pair_exceptions, coin_exceptions
 
 
 def log(msg):
@@ -50,8 +55,8 @@ def main():
         except Exception as e:
             log(f'Ошибка инициализации {ex}: {e}')
     
-    # Получаем пары с TARGET_CURRENCY
-    log(f'Загружаю пары с {TARGET_CURRENCY}...')
+    # Получаем пары с TARGET_TICKER
+    log(f'Загружаю пары с {TARGET_TICKER}...')
     markets_by_exchange = {}
     for ex, obj in exchange_objs.items():
         try:
@@ -65,19 +70,30 @@ def main():
     for pairs in markets_by_exchange.values():
         all_pairs.update(pairs)
     # Загружаем исключения
-    exceptions = load_exceptions(EXCEPTIONS_FILE)
-    if exceptions:
-        log(f'Исключённые пары: {sorted(exceptions)}')
-    filtered_pairs = all_pairs - exceptions
+    pair_exceptions, coin_exceptions = load_exceptions(EXCEPTIONS_FILE)
+    if pair_exceptions or coin_exceptions:
+        log(f'Исключённые пары: {sorted(pair_exceptions)}')
+        log(f'Исключённые монеты: {sorted(coin_exceptions)}')
+    filtered_pairs = set()
+    for pair in all_pairs:
+        base, _, quote = pair.partition('/')
+        if pair in pair_exceptions:
+            continue
+        if base in coin_exceptions or quote in coin_exceptions:
+            continue
+        filtered_pairs.add(pair)
     if not filtered_pairs:
         log('Нет пар для проверки после применения исключений.')
         return
-    log(f'Пары для проверки: {sorted(filtered_pairs)}')
 
     # Предварительно вычисляем пересечения бирж для каждой пары
     pair_exchanges = {}
     for symbol in filtered_pairs:
         pair_exchanges[symbol] = [ex for ex in EXCHANGES if symbol in markets_by_exchange.get(ex, set())]
+
+    # Оставляем только пары, которые есть минимум на двух биржах
+    valid_pairs = {symbol for symbol, exs in pair_exchanges.items() if len(exs) >= 2}
+    log(f'Пары для проверки: {sorted(valid_pairs)}')
 
     while True:
         log('Проверка цен...')
@@ -86,12 +102,14 @@ def main():
         tickers_by_exchange = {}
         for ex, obj in exchange_objs.items():
             try:
-                tickers_by_exchange[ex] = obj.fetch_tickers(list(markets_by_exchange[ex]))
+                # Только пары, которые есть на этой бирже и в valid_pairs
+                pairs_for_exchange = list(markets_by_exchange[ex] & valid_pairs)
+                tickers_by_exchange[ex] = obj.fetch_tickers(pairs_for_exchange)
             except Exception as e:
                 log(f'Ошибка массового запроса {ex}: {e}')
                 tickers_by_exchange[ex] = {}
         # Для каждой пары сравниваем только между заранее найденными биржами
-        for symbol in sorted(filtered_pairs):
+        for symbol in sorted(valid_pairs):
             available_exs = pair_exchanges[symbol]
             for ex1, ex2 in combinations(available_exs, 2):
                 t1 = tickers_by_exchange[ex1].get(symbol, {})
@@ -100,9 +118,8 @@ def main():
                 price2 = t2.get('last')
                 ts1 = t1.get('timestamp')
                 ts2 = t2.get('timestamp')
-                # if (price1 is None or price2 is None or ts1 is None or ts2 is None):
-                #     log(f'{symbol}: {ex1}={price1} (ts={ts1}), {ex2}={price2} (ts={ts2}) — нет данных')
-                #     continue
+                if (price1 is None or price2 is None):
+                    continue
                 # if (now_ms - ts1 > MAX_AGE_MS) or (now_ms - ts2 > MAX_AGE_MS):
                 #     log(f'{symbol}: {ex1}={price1} (ts={ts1}), {ex2}={price2} (ts={ts2}) — данные устарели')
                 #     continue
