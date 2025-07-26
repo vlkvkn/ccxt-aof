@@ -1,4 +1,4 @@
-#Можно вводить как Ticker, например "DOGS", так и Symbol например "DOGS/USDT"
-NEIRO #под одним Ticker разные монеты
-ALPHA #под одним Ticker разные монеты
-MOVE #дорогой, долгий депозит/вывод только в сети эфира
+# You can enter either a Ticker, e.g. "DOGS", or a Symbol, e.g. "DOGS/USDT"
+NEIRO # different coins under the same ticker
+ALPHA # different coins under the same ticker
+MOVE # expensive, slow deposit/withdrawal only via Ethereum network
