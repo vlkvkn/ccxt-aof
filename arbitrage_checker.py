@@ -9,18 +9,16 @@ from rich.live import Live
 
 # Настройки
 EXCHANGES = ['binance', 'bybit', 'okx']
-TARGET_TICKER = 'USDT'
 CHECK_INTERVAL = 2  # секунд
-DELTA = 0.03  # 3%
 EXCEPTIONS_FILE = 'exceptions.txt'
 MAX_AGE_MS = 1000  # 1 секунда в миллисекундах
 
 
-def get_target_markets(exchange):
+def get_target_markets(exchange, target_ticker):
     markets = exchange.load_markets()
     target_pairs = set()
     for symbol in markets:
-        if symbol.endswith(f'/{TARGET_TICKER}'):
+        if symbol.endswith(f'/{target_ticker}'):
             target_pairs.add(symbol)
     return target_pairs
 
@@ -51,9 +49,18 @@ def log(msg):
 def main():
     console = Console()
     
+    # Запрашиваем целевой тикер у пользователя
+    TARGET_TICKER = input("Введите целевой тикер (по умолчанию USDT): ").strip().upper()
+    if not TARGET_TICKER:
+        TARGET_TICKER = 'USDT'
+    DELTA = int(input("Введите минимальную дельту в процентах (по умолчанию 3%): "))
+    if not DELTA:
+        DELTA = 0.03
+    else: DELTA = DELTA / 100
+    
     log(f'Целевой тикер: {TARGET_TICKER}')
     log(f'Минимальная дельта: {DELTA * 100:.2f}%')
-    log(f'Интервал обновления: {CHECK_INTERVAL}')
+    log(f'Интервал обновления: {CHECK_INTERVAL}сек.')
     log(f'Биржи для арбитража (ccxt): {EXCHANGES}')
 
     exchange_objs = {}
@@ -67,7 +74,7 @@ def main():
     markets_by_exchange = {}
     for ex, obj in exchange_objs.items():
         try:
-            markets_by_exchange[ex] = get_target_markets(obj)
+            markets_by_exchange[ex] = get_target_markets(obj, TARGET_TICKER)
         except Exception as e:
             log(f'Ошибка загрузки пар {ex}: {e}')
             markets_by_exchange[ex] = set()
