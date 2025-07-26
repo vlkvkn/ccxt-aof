@@ -11,7 +11,6 @@ from rich.live import Live
 
 # Settings
 EXCHANGES = ['binance', 'bybit', 'okx']
-CHECK_INTERVAL = 2  # seconds
 EXCEPTIONS_FILE = 'exceptions.txt'
 
 
@@ -64,10 +63,15 @@ def main():
     if not TARGET_TICKER:
         TARGET_TICKER = 'USDT'
     
-    DELTA = 0.03
+    DELTA = 0.03 # 3%
     DELTA_INPUT = input("Enter minimum delta in percentage (default 3%): ")
     if DELTA_INPUT:
-        DELTA = int(DELTA_INPUT) / 100
+        DELTA = int(DELTA_INPUT) / 100.0
+
+    CHECK_INTERVAL = 2  # 2 seconds
+    CHECK_INTERVAL_INPUT = input("Enter update interval in seconds (default 2): ")
+    if CHECK_INTERVAL_INPUT:
+        CHECK_INTERVAL = int(CHECK_INTERVAL_INPUT)
     
     log(f'Target ticker: {TARGET_TICKER}')
     log(f'Minimum delta: {DELTA * 100:.2f}%')
