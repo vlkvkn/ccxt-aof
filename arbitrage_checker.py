@@ -63,10 +63,11 @@ def main():
     TARGET_TICKER = input("Enter target ticker (default USDT): ").strip().upper()
     if not TARGET_TICKER:
         TARGET_TICKER = 'USDT'
-    DELTA = int(input("Enter minimum delta in percentage (default 3%): "))
-    if not DELTA:
-        DELTA = 0.03
-    else: DELTA = DELTA / 100
+    
+    DELTA = 0.03
+    DELTA_INPUT = input("Enter minimum delta in percentage (default 3%): ")
+    if DELTA_INPUT:
+        DELTA = int(DELTA_INPUT) / 100
     
     log(f'Target ticker: {TARGET_TICKER}')
     log(f'Minimum delta: {DELTA * 100:.2f}%')
