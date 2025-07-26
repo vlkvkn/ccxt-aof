@@ -1,6 +1,8 @@
 import ccxt
 import time
 import os
+import signal
+import sys
 from datetime import datetime
 from itertools import combinations
 from rich.console import Console
@@ -45,8 +47,17 @@ def log(msg):
     print(f'[{now}] {msg}')
 
 
+def signal_handler(signum, frame):
+    """Handle Ctrl+C gracefully"""
+    print("\n\nExiting gracefully...")
+    sys.exit(0)
+
+
 def main():
     console = Console()
+    
+    # Set up signal handler for graceful exit
+    signal.signal(signal.SIGINT, signal_handler)
     
     # Request target ticker from user
     TARGET_TICKER = input("Enter target ticker (default USDT): ").strip().upper()
@@ -130,31 +141,35 @@ def main():
             table.add_row(symbol, ex1, str(price1), ex2, str(price2), f"{diff*100:.2f}")
         return table
     with Live(make_table(), refresh_per_second=2, console=console) as live:
-        while True:
-            now_ms = int(time.time() * 1000)
-            tickers_by_exchange = {}
-            for ex, obj in exchange_objs.items():
-                try:
-                    pairs_for_exchange = list(markets_by_exchange[ex] & valid_pairs)
-                    tickers_by_exchange[ex] = obj.fetch_tickers(pairs_for_exchange)
-                except Exception as e:
-                    log(f'Bulk request error {ex}: {e}')
-                    tickers_by_exchange[ex] = {}
-            for symbol, ex1, ex2 in pair_combos:
-                t1 = tickers_by_exchange[ex1].get(symbol, {})
-                t2 = tickers_by_exchange[ex2].get(symbol, {})
-                price1 = t1.get('last')
-                price2 = t2.get('last')
-                ts1 = t1.get('timestamp')
-                ts2 = t2.get('timestamp')
-                if (price1 is None or price2 is None):
-                    continue
-                diff = abs(price1 - price2) / min(price1, price2)
-                if diff > DELTA:
-                    last_check = datetime.now().strftime('%H:%M:%S')
-                    results[(symbol, ex1, ex2)] = (price1, price2, diff, last_check)
-            live.update(make_table())
-            time.sleep(CHECK_INTERVAL)
+        try:
+            while True:
+                now_ms = int(time.time() * 1000)
+                tickers_by_exchange = {}
+                for ex, obj in exchange_objs.items():
+                    try:
+                        pairs_for_exchange = list(markets_by_exchange[ex] & valid_pairs)
+                        tickers_by_exchange[ex] = obj.fetch_tickers(pairs_for_exchange)
+                    except Exception as e:
+                        log(f'Bulk request error {ex}: {e}')
+                        tickers_by_exchange[ex] = {}
+                for symbol, ex1, ex2 in pair_combos:
+                    t1 = tickers_by_exchange[ex1].get(symbol, {})
+                    t2 = tickers_by_exchange[ex2].get(symbol, {})
+                    price1 = t1.get('last')
+                    price2 = t2.get('last')
+                    ts1 = t1.get('timestamp')
+                    ts2 = t2.get('timestamp')
+                    if (price1 is None or price2 is None):
+                        continue
+                    diff = abs(price1 - price2) / min(price1, price2)
+                    if diff > DELTA:
+                        last_check = datetime.now().strftime('%H:%M:%S')
+                        results[(symbol, ex1, ex2)] = (price1, price2, diff, last_check)
+                live.update(make_table())
+                time.sleep(CHECK_INTERVAL)
+        except KeyboardInterrupt:
+            print("\n\nExiting gracefully...")
+            sys.exit(0)
 
 
 if __name__ == '__main__':
