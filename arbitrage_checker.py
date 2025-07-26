@@ -7,11 +7,10 @@ from rich.console import Console
 from rich.table import Table
 from rich.live import Live
 
-# Настройки
+# Settings
 EXCHANGES = ['binance', 'bybit', 'okx']
-CHECK_INTERVAL = 2  # секунд
+CHECK_INTERVAL = 2  # seconds
 EXCEPTIONS_FILE = 'exceptions.txt'
-MAX_AGE_MS = 1000  # 1 секунда в миллисекундах
 
 
 def get_target_markets(exchange, target_ticker):
@@ -30,7 +29,7 @@ def load_exceptions(filename):
     coin_exceptions = set()
     with open(filename, 'r', encoding='utf-8') as f:
         for line in f:
-            # Убираем комментарии и пробелы
+            # Remove comments and spaces
             line = line.split('#', 1)[0].replace(' ', '').strip()
             if not line:
                 continue
@@ -49,46 +48,46 @@ def log(msg):
 def main():
     console = Console()
     
-    # Запрашиваем целевой тикер у пользователя
-    TARGET_TICKER = input("Введите целевой тикер (по умолчанию USDT): ").strip().upper()
+    # Request target ticker from user
+    TARGET_TICKER = input("Enter target ticker (default USDT): ").strip().upper()
     if not TARGET_TICKER:
         TARGET_TICKER = 'USDT'
-    DELTA = int(input("Введите минимальную дельту в процентах (по умолчанию 3%): "))
+    DELTA = int(input("Enter minimum delta in percentage (default 3%): "))
     if not DELTA:
         DELTA = 0.03
     else: DELTA = DELTA / 100
     
-    log(f'Целевой тикер: {TARGET_TICKER}')
-    log(f'Минимальная дельта: {DELTA * 100:.2f}%')
-    log(f'Интервал обновления: {CHECK_INTERVAL}сек.')
-    log(f'Биржи для арбитража (ccxt): {EXCHANGES}')
+    log(f'Target ticker: {TARGET_TICKER}')
+    log(f'Minimum delta: {DELTA * 100:.2f}%')
+    log(f'Update interval: {CHECK_INTERVAL}sec.')
+    log(f'Exchanges for arbitrage (ccxt): {EXCHANGES}')
 
     exchange_objs = {}
     for ex in EXCHANGES:
         try:
             exchange_objs[ex] = getattr(ccxt, ex)()
         except Exception as e:
-            log(f'Ошибка инициализации {ex}: {e}')
+            log(f'Initialization error {ex}: {e}')
     
-    # Получаем пары с TARGET_TICKER
+    # Get pairs with TARGET_TICKER
     markets_by_exchange = {}
     for ex, obj in exchange_objs.items():
         try:
             markets_by_exchange[ex] = get_target_markets(obj, TARGET_TICKER)
         except Exception as e:
-            log(f'Ошибка загрузки пар {ex}: {e}')
+            log(f'Error loading pairs {ex}: {e}')
             markets_by_exchange[ex] = set()
 
-    # Собираем все уникальные пары
+    # Collect all unique pairs
     all_pairs = set()
     for pairs in markets_by_exchange.values():
         all_pairs.update(pairs)
 
-    # Загружаем исключения
+    # Load exceptions
     pair_exceptions, coin_exceptions = load_exceptions(EXCEPTIONS_FILE)
     if pair_exceptions or coin_exceptions:
-        log(f'Исключённые пары: {sorted(pair_exceptions)}')
-        log(f'Исключённые монеты: {sorted(coin_exceptions)}')
+        log(f'Excluded pairs: {sorted(pair_exceptions)}')
+        log(f'Excluded coins: {sorted(coin_exceptions)}')
     filtered_pairs = set()
     for pair in all_pairs:
         base, _, quote = pair.partition('/')
@@ -98,33 +97,33 @@ def main():
             continue
         filtered_pairs.add(pair)
     if not filtered_pairs:
-        log('Нет пар для проверки после применения исключений.')
+        log('No pairs to check after applying exceptions.')
         return
 
-    # Предварительно вычисляем пересечения бирж для каждой пары
+    # Pre-calculate exchange intersections for each pair
     pair_exchanges = {}
     for symbol in filtered_pairs:
         pair_exchanges[symbol] = [ex for ex in EXCHANGES if symbol in markets_by_exchange.get(ex, set())]
-    # Оставляем только пары, которые есть минимум на двух биржах
+    # Keep only pairs that exist on at least two exchanges
     valid_pairs = {symbol for symbol, exs in pair_exchanges.items() if len(exs) >= 2}
-    log(f'Пары для проверки: {sorted(valid_pairs)}')
-    # Для хранения результатов
+    log(f'Pairs to check: {sorted(valid_pairs)}')
+    # For storing results
     results = {}
-    # Формируем все возможные сравнения для пар
+    # Generate all possible pair comparisons
     pair_combos = []
     for symbol in sorted(valid_pairs):
         available_exs = pair_exchanges[symbol]
         for ex1, ex2 in combinations(available_exs, 2):
             pair_combos.append((symbol, ex1, ex2))
-    # Создаём таблицу
+    # Create table
     def make_table():
-        table = Table(title=f"Арбитражные возможности ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
-        table.add_column("Пара")
-        table.add_column("Биржа 1")
-        table.add_column("Цена 1")
-        table.add_column("Биржа 2")
-        table.add_column("Цена 2")
-        table.add_column("Разница %")
+        table = Table(title=f"Arbitrage opportunities ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
+        table.add_column("Pair")
+        table.add_column("Exchange 1")
+        table.add_column("Price 1")
+        table.add_column("Exchange 2")
+        table.add_column("Price 2")
+        table.add_column("Difference %")
         for key, value in results.items():
             symbol, ex1, ex2 = key
             price1, price2, diff, last_check = value
@@ -139,7 +138,7 @@ def main():
                     pairs_for_exchange = list(markets_by_exchange[ex] & valid_pairs)
                     tickers_by_exchange[ex] = obj.fetch_tickers(pairs_for_exchange)
                 except Exception as e:
-                    log(f'Ошибка массового запроса {ex}: {e}')
+                    log(f'Bulk request error {ex}: {e}')
                     tickers_by_exchange[ex] = {}
             for symbol, ex1, ex2 in pair_combos:
                 t1 = tickers_by_exchange[ex1].get(symbol, {})
