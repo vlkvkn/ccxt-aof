@@ -17,7 +17,7 @@ A real-time cryptocurrency arbitrage opportunity finder that monitors multiple e
 1. Clone the repository:
 ```bash
 git clone https://github.com/vlkvkn/ccxt-arbitrage-opportunity-finder.git
-cd ccxt-arbitrage
+cd ccxt-arbitrage-opportunity-finder
 ```
 
 2. Install dependencies:
