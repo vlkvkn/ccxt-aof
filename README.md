@@ -4,7 +4,7 @@ A real-time cryptocurrency arbitrage opportunity finder that monitors multiple e
 
 ## Features
 
-- **Multi-Exchange Support**: Monitors Binance, Bybit, and OKX exchanges
+- **Multi-Exchange Support**: Monitors multiple exchanges (configurable via exchanges.txt)
 - **Real-Time Monitoring**: Continuously checks for price differences across exchanges
 - **Customizable Parameters**: 
   - Target ticker (USDT, BTC, ETH, etc.)
@@ -16,7 +16,7 @@ A real-time cryptocurrency arbitrage opportunity finder that monitors multiple e
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/vlkvkn/ccxt-arbitrage-ability-parser.git
+git clone https://github.com/vlkvkn/ccxt-arbitrage-opportunity-finder.git
 cd ccxt-arbitrage
 ```
 
@@ -43,6 +43,17 @@ python arbitrage_checker.py
 
 ## Configuration
 
+### Exchanges File
+
+Create an `exchanges.txt` file to specify which exchanges to monitor:
+
+```
+# ccxt supported exchanges (full list: https://docs.ccxt.com/#/Exchange-Markets)
+binance
+bybit
+okx
+```
+
 ### Exceptions File
 
 Create an `exceptions.txt` file to exclude specific coins or trading pairs:
@@ -56,7 +67,7 @@ MOVE # expensive, slow deposit/withdrawal only via Ethereum network
 
 ## How It Works
 
-1. **Exchange Connection**: Connects to multiple cryptocurrency exchanges using CCXT library
+1. **Exchange Connection**: Connects to cryptocurrency exchanges specified in exchanges.txt using CCXT library
 2. **Market Data Collection**: Fetches all trading pairs for the specified target ticker
 3. **Pair Filtering**: Applies exceptions and keeps only pairs available on at least 2 exchanges
 4. **Price Comparison**: Continuously compares prices across exchanges

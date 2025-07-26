@@ -1,0 +1,4 @@
+# ccxt supported exchanges (full list: https://docs.ccxt.com/#/Exchange-Markets)
+binance
+bybit
+okx

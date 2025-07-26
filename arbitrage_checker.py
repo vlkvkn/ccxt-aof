@@ -10,8 +10,15 @@ from rich.table import Table
 from rich.live import Live
 
 # Settings
-EXCHANGES = ['binance', 'bybit', 'okx']
 EXCEPTIONS_FILE = 'exceptions.txt'
+EXCHANGES_FILE = 'exchanges.txt'
+
+
+def load_exchanges(filename):
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"Exchanges file '{filename}' not found.")
+    with open(filename, 'r', encoding='utf-8') as f:
+        return [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
 
 
 def get_target_markets(exchange, target_ticker):
@@ -57,6 +64,9 @@ def main():
     
     # Set up signal handler for graceful exit
     signal.signal(signal.SIGINT, signal_handler)
+    
+    # Load exchanges from file
+    EXCHANGES = load_exchanges(EXCHANGES_FILE)
     
     # Request target ticker from user
     TARGET_TICKER = input("Enter target ticker (default USDT): ").strip().upper()
