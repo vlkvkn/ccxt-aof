@@ -1,4 +1,4 @@
-# CCXT Arbitrage Checker
+# CCXT Arbitrage Opportunity Finder
 
 A real-time cryptocurrency arbitrage opportunity finder that monitors multiple exchanges simultaneously to identify profitable trading opportunities.
 
@@ -16,8 +16,8 @@ A real-time cryptocurrency arbitrage opportunity finder that monitors multiple e
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/vlkvkn/ccxt-arbitrage-opportunity-finder.git
-cd ccxt-arbitrage-opportunity-finder
+git clone https://github.com/vlkvkn/ccxt-aof.git
+cd ccxt-aof
 ```
 
 2. Install dependencies:
@@ -29,7 +29,7 @@ pip install -r requirements.txt
 
 1. Run the program:
 ```bash
-python arbitrage_checker.py
+python aof.py
 ```
 
 2. Follow the interactive prompts:
