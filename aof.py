@@ -53,6 +53,12 @@ def log(msg):
     print(f'[{now}] {msg}')
 
 
+def get_volume(volume1, volume2):
+    if volume1 is None or volume2 is None:
+        return 'Undefined'
+    return min(volume1, volume2)
+
+
 def signal_handler(signum, frame):
     """Handle Ctrl+C gracefully"""
     print("\n\nExiting gracefully...")
@@ -150,10 +156,11 @@ def main():
         table.add_column("Exchange Bid")
         table.add_column("Price Bid")
         table.add_column("Difference %")
+        table.add_column("Volume")
         for key, value in results.items():
             symbol, ex1, ex2 = key
-            price1, price2, diff = value
-            table.add_row(symbol, ex1, str(price1), ex2, str(price2), f"{diff*100:.2f}")
+            price1, price2, diff, volume = value
+            table.add_row(symbol, ex1, str(price1), ex2, str(price2), f"{diff*100:.2f}", str(volume))
         return table
     with Live(make_table(), refresh_per_second=2, console=console) as live:
         try:
@@ -173,11 +180,13 @@ def main():
                     if not (t1.get('bid') is None or t2.get('ask')  is None):
                         diff = (t1.get('bid') - t2.get('ask')) / t2.get('ask')
                         if diff > DELTA:
-                            results[(symbol, ex2, ex1)] = (t2.get('ask'), t1.get('bid'), diff)
+                            volume = get_volume(t1.get('bidVolume'), t2.get('askVolume'))
+                            results[(symbol, ex2, ex1)] = (t2.get('ask'), t1.get('bid'), diff, volume)
                     if not (t2.get('bid') is None or t1.get('ask') is None):
                         diff = (t2.get('bid') - t1.get('ask')) / t1.get('ask')
                         if diff > DELTA:
-                            results[(symbol, ex1, ex2)] = (t1.get('ask'), t2.get('bid'), diff)
+                            volume = get_volume(t2.get('bidVolume'), t1.get('askVolume'))
+                            results[(symbol, ex1, ex2)] = (t1.get('ask'), t2.get('bid'), diff, volume)
                 live.update(make_table())
                 time.sleep(CHECK_INTERVAL)
         except KeyboardInterrupt:
