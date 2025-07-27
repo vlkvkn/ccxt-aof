@@ -145,14 +145,14 @@ def main():
     def make_table():
         table = Table(title=f"Arbitrage opportunities ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
         table.add_column("Pair")
-        table.add_column("Exchange 1")
-        table.add_column("Price 1")
-        table.add_column("Exchange 2")
-        table.add_column("Price 2")
+        table.add_column("Exchange Ask")
+        table.add_column("Price Ask")
+        table.add_column("Exchange Bid")
+        table.add_column("Price Bid")
         table.add_column("Difference %")
         for key, value in results.items():
             symbol, ex1, ex2 = key
-            price1, price2, diff, last_check = value
+            price1, price2, diff = value
             table.add_row(symbol, ex1, str(price1), ex2, str(price2), f"{diff*100:.2f}")
         return table
     with Live(make_table(), refresh_per_second=2, console=console) as live:
@@ -170,16 +170,14 @@ def main():
                 for symbol, ex1, ex2 in pair_combos:
                     t1 = tickers_by_exchange[ex1].get(symbol, {})
                     t2 = tickers_by_exchange[ex2].get(symbol, {})
-                    price1 = t1.get('last')
-                    price2 = t2.get('last')
-                    ts1 = t1.get('timestamp')
-                    ts2 = t2.get('timestamp')
-                    if (price1 is None or price2 is None):
-                        continue
-                    diff = abs(price1 - price2) / min(price1, price2)
-                    if diff > DELTA:
-                        last_check = datetime.now().strftime('%H:%M:%S')
-                        results[(symbol, ex1, ex2)] = (price1, price2, diff, last_check)
+                    if not (t1.get('bid') is None or t2.get('ask')  is None):
+                        diff = (t1.get('bid') - t2.get('ask')) / t2.get('ask')
+                        if diff > DELTA:
+                            results[(symbol, ex2, ex1)] = (t2.get('ask'), t1.get('bid'), diff)
+                    if not (t2.get('bid') is None or t1.get('ask') is None):
+                        diff = (t2.get('bid') - t1.get('ask')) / t1.get('ask')
+                        if diff > DELTA:
+                            results[(symbol, ex1, ex2)] = (t1.get('ask'), t2.get('bid'), diff)
                 live.update(make_table())
                 time.sleep(CHECK_INTERVAL)
         except KeyboardInterrupt:
