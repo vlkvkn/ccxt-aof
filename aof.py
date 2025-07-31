@@ -174,6 +174,7 @@ def main():
                     except Exception as e:
                         log(f'Bulk request error {ex}: {e}')
                         tickers_by_exchange[ex] = {}
+                results.clear()                
                 for symbol, ex1, ex2 in pair_combos:
                     t1 = tickers_by_exchange[ex1].get(symbol, {})
                     t2 = tickers_by_exchange[ex2].get(symbol, {})
