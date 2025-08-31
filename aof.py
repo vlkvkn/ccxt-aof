@@ -120,7 +120,7 @@ def main():
         TARGET_TICKER = 'USDT'
     
     # Ask about including futures
-    FUTURES_ONLY = input("Include only futures markets (1) or only spot markets (2)? (default 1): ").strip().lower()
+    FUTURES_ONLY = input("Include only futures/swap markets (1) or only spot markets (2)? (default 1): ").strip().lower()
     FUTURES_ONLY = FUTURES_ONLY != '2'
     
     DELTA = 0.02 # 2%
