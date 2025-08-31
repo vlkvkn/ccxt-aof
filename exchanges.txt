@@ -2,3 +2,4 @@
 binance
 bybit
 okx
+gate

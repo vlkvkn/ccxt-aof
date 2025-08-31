@@ -5,12 +5,16 @@ A real-time cryptocurrency arbitrage opportunity finder that monitors multiple e
 ## Features
 
 - **Multi-Exchange Support**: Monitors multiple exchanges (configurable via exchanges.txt)
+- **Market Type Support**: Works with spot, futures, and swap markets
 - **Real-Time Monitoring**: Continuously checks for price differences across exchanges
 - **Customizable Parameters**: 
   - Target ticker (USDT, BTC, ETH, etc.)
+  - Market type selection (spot, futures, or both)
   - Minimum delta percentage
   - Update interval
 - **Exception Management**: Exclude specific coins or trading pairs
+- **Live Table Display**: Real-time updating table with market type information
+- **Logging**: Automatic logging of arbitrage opportunities to file
 
 ## Installation
 
@@ -34,6 +38,7 @@ python aof.py
 
 2. Follow the interactive prompts:
    - Enter target ticker (default: USDT)
+   - Choose whether to include futures markets (y/n, default: y)
    - Enter minimum delta percentage (default: 3%)
    - Enter update interval in seconds (default: 2)
 
@@ -52,6 +57,8 @@ Create an `exchanges.txt` file to specify which exchanges to monitor:
 binance
 bybit
 okx
+kucoin
+gate
 ```
 
 ### Exceptions File
@@ -69,21 +76,32 @@ MOVE # expensive, slow deposit/withdrawal only via Ethereum network
 
 1. **Exchange Connection**: Connects to cryptocurrency exchanges specified in exchanges.txt using CCXT library
 2. **Market Data Collection**: Fetches all trading pairs for the specified target ticker
-3. **Pair Filtering**: Applies exceptions and keeps only pairs available on at least 2 exchanges
-4. **Price Comparison**: Continuously compares prices across exchanges
-5. **Opportunity Detection**: Identifies price differences above the specified delta threshold
-6. **Live Display**: Shows opportunities in a real-time updating table
+3. **Market Type Filtering**: Filters markets based on user preference (spot, futures, or both)
+4. **Pair Filtering**: Applies exceptions and keeps only pairs available on at least 2 exchanges
+5. **Price Comparison**: Continuously compares bid/ask prices across exchanges
+6. **Opportunity Detection**: Identifies price differences above the specified delta threshold
+7. **Live Display**: Shows opportunities in a real-time updating table with market type information
+8. **Logging**: Automatically logs all arbitrage opportunities to logs.txt
 
 ## Output Example
 
 ```
-                       Arbitrage opportunities (2025-08-30 12:48:21)
-┏━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━┓
-┃ Pair     ┃ Exchange Ask ┃ Price Ask ┃ Exchange Bid ┃ Price Bid ┃ Difference % ┃ Volume  ┃
-┡━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━┩
-│ BIO/USDT │ binance      │ 0.1762    │ okx          │ 0.18449   │ 4.70         │ 108.938 │
-└──────────┴──────────────┴───────────┴──────────────┴───────────┴──────────────┴─────────┘
+                               Arbitrage opportunities (2025-08-31 15:40:09)
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓
+┃ Pair        ┃ Market Type ┃ Buy Exchange ┃ Buy Price ┃ Sell Exchange ┃ Sell Price ┃ Volume    ┃ Profit % ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩
+│ DUEL/USDT   │ SPOT        │ gate         │ 0.0005268 │ bybit         │ 0.0005431  │ Undefined │ 3.09%    │
+│ PINEYE/USDT │ SPOT        │ bybit        │ 0.0002892 │ gate          │ 0.00029964 │ Undefined │ 3.61%    │
+└─────────────┴─────────────┴──────────────┴───────────┴───────────────┴────────────┴───────────┴──────────┘
 ```
+
+## Market Types
+
+The program identifies and displays different market types:
+- **SPOT**: Traditional spot trading markets
+- **FUTURES**: Futures contracts markets
+- **SWAP**: Perpetual swap markets
+- **UNKNOWN**: Markets with undetermined type
 
 ## Requirements
 
@@ -94,9 +112,15 @@ MOVE # expensive, slow deposit/withdrawal only via Ethereum network
 ## Dependencies
 
 - `ccxt`: Cryptocurrency exchange trading library
-- `rich`: Rich text and beautiful formatting in the terminal
-- `datetime`: Date and time utilities
-- `itertools`: Efficient looping tools
+- `rich`: Rich text and beautiful formatting in the 
+
+## Logging
+
+All arbitrage opportunities are automatically logged to `logs.txt` with timestamps:
+```
+[2025-08-31 15:40:09] DUEL/USDT (SPOT/SPOT) - BUY on gate at 0.0005268, SELL on bybit at 0.0005431, Volume: Undefined, Profit: 3.09%
+[2025-08-31 15:40:09] PINEYE/USDT (SPOT/SPOT) - BUY on bybit at 0.0002892, SELL on gate at 0.00029964, Volume: Undefined, Profit: 3.61%
+```
 
 ## Contributing
 
@@ -106,7 +130,6 @@ MOVE # expensive, slow deposit/withdrawal only via Ethereum network
 4. Add tests if applicable
 5. Submit a pull request
 
-
 ## Disclaimer
 
-This tool is for educational and informational purposes only. Cryptocurrency trading involves significant risk. Always do your own research and consider consulting with a financial advisor before making any trading decisions.
+This tool is for educational and informational purposes only. Cryptocurrency trading involves significant risk. Always do your own research and consider consulting with a financial advisor before making any trading decisions. The tool does not execute trades automatically - it only identifies potential opportunities.

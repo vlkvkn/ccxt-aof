@@ -2,3 +2,9 @@
 NEIRO # different coins under the same ticker
 ALPHA # different coins under the same ticker
 MOVE # expensive, slow deposit/withdrawal only via Ethereum network
+ZERO # different coins under the same ticker
+TST # different coins under the same ticker
+TRC # different coins under the same ticker
+QI # different coins under the same ticker
+BEAM # different coins under the same ticker
+CLV # different coins under the same ticker
