@@ -89,14 +89,7 @@ def get_volume(volume1, volume2):
 
 def get_market_type(market_info):
     #Determine market type for display
-    if market_info.get('future', False):
-        return 'FUTURES'
-    elif market_info.get('swap', False):
-        return 'SWAP'
-    elif market_info.get('spot', False):
-        return 'SPOT'
-    else:
-        return 'UNKNOWN'
+    return market_info.get('type').upper()
 
 
 def signal_handler(signum, frame):
