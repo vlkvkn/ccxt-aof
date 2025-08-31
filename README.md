@@ -5,11 +5,11 @@ A real-time cryptocurrency arbitrage opportunity finder that monitors multiple e
 ## Features
 
 - **Multi-Exchange Support**: Monitors multiple exchanges (configurable via exchanges.txt)
-- **Market Type Support**: Works with spot, futures, and swap markets
+- **Market Type Support**: Works with futures/swap markets or spot markets
 - **Real-Time Monitoring**: Continuously checks for price differences across exchanges
 - **Customizable Parameters**: 
   - Target ticker (USDT, BTC, ETH, etc.)
-  - Market type selection (spot, futures, or both)
+  - Market type selection (futures/swap or spot only)
   - Minimum delta percentage
   - Update interval
 - **Exception Management**: Exclude specific coins or trading pairs
@@ -38,8 +38,10 @@ python aof.py
 
 2. Follow the interactive prompts:
    - Enter target ticker (default: USDT)
-   - Choose whether to include futures markets (y/n, default: y)
-   - Enter minimum delta percentage (default: 3%)
+   - Choose market type (1/2, default: 1):
+     - **1**: Futures and swap markets (futures + perpetual swaps)
+     - **2**: Only spot markets
+   - Enter minimum delta percentage (default: 2%)
    - Enter update interval in seconds (default: 2)
 
 3. The program will start monitoring and display arbitrage opportunities in a live table.
@@ -76,7 +78,7 @@ MOVE # expensive, slow deposit/withdrawal only via Ethereum network
 
 1. **Exchange Connection**: Connects to cryptocurrency exchanges specified in exchanges.txt using CCXT library
 2. **Market Data Collection**: Fetches all trading pairs for the specified target ticker
-3. **Market Type Filtering**: Filters markets based on user preference (spot, futures, or both)
+3. **Market Type Filtering**: Filters markets based on user preference (futures/swap or spot only)
 4. **Pair Filtering**: Applies exceptions and keeps only pairs available on at least 2 exchanges
 5. **Price Comparison**: Continuously compares bid/ask prices across exchanges
 6. **Opportunity Detection**: Identifies price differences above the specified delta threshold
@@ -86,13 +88,12 @@ MOVE # expensive, slow deposit/withdrawal only via Ethereum network
 ## Output Example
 
 ```
-                               Arbitrage opportunities (2025-08-31 15:40:09)
-┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓
-┃ Pair        ┃ Market Type ┃ Buy Exchange ┃ Buy Price ┃ Sell Exchange ┃ Sell Price ┃ Volume    ┃ Profit % ┃
-┡━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩
-│ DUEL/USDT   │ SPOT        │ gate         │ 0.0005268 │ bybit         │ 0.0005431  │ Undefined │ 3.09%    │
-│ PINEYE/USDT │ SPOT        │ bybit        │ 0.0002892 │ gate          │ 0.00029964 │ Undefined │ 3.61%    │
-└─────────────┴─────────────┴──────────────┴───────────┴───────────────┴────────────┴───────────┴──────────┘
+                               Arbitrage opportunities (2025-08-31 17:32:42)
+┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓
+┃ Pair          ┃ Market Type ┃ Buy Exchange ┃ Buy Price ┃ Sell Exchange ┃ Sell Price ┃ Volume ┃ Profit % ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩
+│ XPL/USDT:USDT │ SWAP        │ okx          │ 0.8076    │ bybit         │ 0.824      │ 7.0    │ 2.03%    │
+└───────────────┴─────────────┴──────────────┴───────────┴───────────────┴────────────┴────────┴──────────┘
 ```
 
 ## Market Types
@@ -112,14 +113,13 @@ The program identifies and displays different market types:
 ## Dependencies
 
 - `ccxt`: Cryptocurrency exchange trading library
-- `rich`: Rich text and beautiful formatting in the 
+- `rich`: Rich text and beautiful formatting in the terminal 
 
 ## Logging
 
 All arbitrage opportunities are automatically logged to `logs.txt` with timestamps:
 ```
-[2025-08-31 15:40:09] DUEL/USDT (SPOT/SPOT) - BUY on gate at 0.0005268, SELL on bybit at 0.0005431, Volume: Undefined, Profit: 3.09%
-[2025-08-31 15:40:09] PINEYE/USDT (SPOT/SPOT) - BUY on bybit at 0.0002892, SELL on gate at 0.00029964, Volume: Undefined, Profit: 3.61%
+[2025-08-31 17:32:42] XPL/USDT:USDT (SWAP/SWAP) - BUY on okx at 0.8076, SELL on bybit at 0.824, Volume: 7.0, Profit: 2.03%
 ```
 
 ## Contributing

@@ -22,19 +22,31 @@ def load_exchanges(filename):
         return [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
 
 
-def get_target_markets(exchange, target_ticker, include_futures=True):
+def get_target_markets(exchange, target_ticker, only_futures=True):
+    
+    # Get target markets based on ticker and futures preference.
+    # Args:
+    #     exchange: CCXT exchange instance
+    #     target_ticker: Target ticker (e.g., 'USDT')
+    #     only_futures: If True, return only futures markets    
+    # Returns:
+    #     Set of market symbols matching criteria
+
     markets = exchange.load_markets()
     target_pairs = set()
     
     for symbol, market_info in markets.items():
         # Check if pair ends with target ticker
-        if symbol.endswith(f'/{target_ticker}'):
-            # If futures are enabled, add all pairs
-            if include_futures:
-                target_pairs.add(symbol)
-            # If futures are disabled, exclude futures pairs
-            elif not market_info.get('future', False) and not market_info.get('swap', False):
-                target_pairs.add(symbol)
+        if symbol.endswith(f'{target_ticker}'):
+            # log(f'{symbol} {get_market_type(market_info)}')
+            # If futures are enabled, add only futures pairs
+            if only_futures:
+                if (market_info.get('future', False) or market_info.get('swap', False)):
+                    target_pairs.add(symbol)
+            # If futures are disabled, add only spot pairs
+            else:
+                if not market_info.get('future', False) and not market_info.get('swap', False):
+                    target_pairs.add(symbol)
     
     return target_pairs
 
@@ -108,11 +120,11 @@ def main():
         TARGET_TICKER = 'USDT'
     
     # Ask about including futures
-    FUTURES_INPUT = input("Include futures markets? (y/n, default y): ").strip().lower()
-    INCLUDE_FUTURES = FUTURES_INPUT != 'n'
+    FUTURES_ONLY = input("Include only futures markets (1) or only spot markets (2)? (default 1): ").strip().lower()
+    FUTURES_ONLY = FUTURES_ONLY != '2'
     
-    DELTA = 0.03 # 3%
-    DELTA_INPUT = input("Enter minimum delta in percentage (default 3%): ")
+    DELTA = 0.02 # 2%
+    DELTA_INPUT = input("Enter minimum delta in percentage (default 2%): ")
     if DELTA_INPUT:
         DELTA = int(DELTA_INPUT) / 100.0
 
@@ -122,10 +134,14 @@ def main():
         CHECK_INTERVAL = int(CHECK_INTERVAL_INPUT)
     
     log(f'Target ticker: {TARGET_TICKER}')
-    log(f'Include futures: {INCLUDE_FUTURES}')
     log(f'Minimum delta: {DELTA * 100:.2f}%')
     log(f'Update interval: {CHECK_INTERVAL}sec.')
     log(f'Exchanges for arbitrage (ccxt): {EXCHANGES}')
+    
+    if FUTURES_ONLY:
+        log('Mode: FUTURES/SWAP markets only')
+    else:
+        log('Mode: SPOT markets only')
 
     exchange_objs = {}
     for ex in EXCHANGES:
@@ -139,7 +155,7 @@ def main():
     market_info_by_exchange = {}
     for ex, obj in exchange_objs.items():
         try:
-            markets_by_exchange[ex] = get_target_markets(obj, TARGET_TICKER, INCLUDE_FUTURES)
+            markets_by_exchange[ex] = get_target_markets(obj, TARGET_TICKER, FUTURES_ONLY)
             # Save market information for determining type
             if markets_by_exchange[ex]:
                 market_info_by_exchange[ex] = obj.load_markets()
@@ -243,7 +259,7 @@ def main():
                         if diff > DELTA:
                             volume = get_volume(t1.get('bidVolume'), t2.get('askVolume'))
                             # Add single arbitrage opportunity: buy on ex2, sell on ex1
-                            results.append((symbol, market_type2, f"{ex2}", t2.get('ask'), f"{ex1}", t1.get('bid'), volume, diff))
+                            results.append((symbol, market_type2, ex2, t2.get('ask'), ex1, t1.get('bid'), volume, diff))
                             # Log arbitrage opportunity to file
                             log_to_file(f"{symbol} ({market_type2}/{market_type1}) - BUY on {ex2} at {t2.get('ask')}, SELL on {ex1} at {t1.get('bid')}, Volume: {volume}, Profit: {diff*100:.2f}%")
 
@@ -253,12 +269,12 @@ def main():
                         if diff > DELTA:
                             volume = get_volume(t2.get('bidVolume'), t1.get('askVolume'))
                             # Add single arbitrage opportunity: buy on ex1, sell on ex2
-                            results.append((symbol, market_type1, f"{ex1}", t1.get('ask'), f"{ex2}", t2.get('bid'), volume, diff))
+                            results.append((symbol, market_type1, ex1, t1.get('ask'), ex2, t2.get('bid'), volume, diff))
                             # Log arbitrage opportunity to file
                             log_to_file(f"{symbol} ({market_type1}/{market_type2}) - BUY on {ex1} at {t1.get('ask')}, SELL on {ex2} at {t2.get('bid')}, Volume: {volume}, Profit: {diff*100:.2f}%")
                 
                 # Sort results by profitability
-                results.sort(key=lambda x: x[6], reverse=True)
+                results.sort(key=lambda x: x[7], reverse=True)
                 
                 live.update(make_table())
                 time.sleep(CHECK_INTERVAL)
