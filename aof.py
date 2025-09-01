@@ -87,6 +87,65 @@ def get_volume(volume1, volume2):
     return min(volume1, volume2)
 
 
+def get_real_volume_from_orderbook(exchange, symbol, price, side, max_depth=10):
+
+    # Get real available volume at specific price from order book.
+    # Args:
+    #     exchange: CCXT exchange instance
+    #     symbol: Trading pair symbol
+    #     price: Target price
+    #     side: 'asks' or 'bids'
+    #     max_depth: Maximum order book depth to analyze
+    # Returns:
+    #     Available volume at specified price
+
+    try:
+        # Fetch order book
+        orderbook = exchange.fetchOrderBook(symbol, max_depth)
+        orders = orderbook[side]
+        # Find orders at or below our target price
+        available_volume = 0
+        for entry in orders:
+            level_price = entry[0]
+            level_amount = entry[1]
+            if level_price is None or level_amount is None:
+                continue
+            if level_price <= price:
+                available_volume += level_amount
+            else:
+                break
+        return available_volume
+
+    except Exception as e:
+        log(f'Error fetching orderbook for {symbol} on {exchange.id}: {e}')
+        return 0.0
+
+
+def calculate_arbitrage_volume(exchange1, exchange2, symbol, price1, price2):
+    
+    # Calculate maximum arbitrage volume based on real order book data.
+    # Args:
+    #     exchange1: First exchange instance
+    #     exchange2: Second exchange instance
+    #     symbol: Trading pair symbol
+    #     price1: Price on first exchange
+    #     price2: Price on second exchange
+    # Returns:
+    #     Maximum available volume for arbitrage
+
+    try:
+        # Get real volumes from order books
+        volume1 = get_real_volume_from_orderbook(exchange1, symbol, price1, 'asks')
+        volume2 = get_real_volume_from_orderbook(exchange2, symbol, price2, 'bids')
+        
+        # Return minimum volume (bottleneck)
+        return min(volume1, volume2)
+        
+    except Exception as e:
+        log(f'Error calculating arbitrage volume for {symbol}: {e}')
+        return 0.0
+
+
 def get_market_type(market_info):
     #Determine market type for display
     return market_info.get('type').upper()
@@ -116,6 +175,10 @@ def main():
     FUTURES_ONLY = input("Include only futures/swap markets (1) or only spot markets (2)? (default 1): ").strip().lower()
     FUTURES_ONLY = FUTURES_ONLY != '2'
     
+    # Ask about order book analysis
+    ORDERBOOK_ANALYSIS = input("Enable detailed order book analysis for real volumes? (y/n, default: n): ").strip().lower()
+    ORDERBOOK_ANALYSIS = ORDERBOOK_ANALYSIS == 'y'
+    
     DELTA = 0.02 # 2%
     DELTA_INPUT = input("Enter minimum delta in percentage (default 2%): ")
     if DELTA_INPUT:
@@ -127,6 +190,7 @@ def main():
         CHECK_INTERVAL = int(CHECK_INTERVAL_INPUT)
     
     log(f'Target ticker: {TARGET_TICKER}')
+    log(f'Order book analysis: {"Enabled" if ORDERBOOK_ANALYSIS else "Disabled"}')
     log(f'Minimum delta: {DELTA * 100:.2f}%')
     log(f'Update interval: {CHECK_INTERVAL}sec.')
     log(f'Exchanges for arbitrage (ccxt): {EXCHANGES}')
@@ -226,7 +290,6 @@ def main():
     with Live(make_table(), refresh_per_second=2, console=console) as live:
         try:
             while True:
-                now_ms = int(time.time() * 1000)
                 tickers_by_exchange = {}
                 for ex, obj in exchange_objs.items():
                     try:
@@ -250,21 +313,31 @@ def main():
                     if not (t1.get('bid') is None or t2.get('ask') is None):
                         diff = (t1.get('bid') - t2.get('ask')) / t2.get('ask')
                         if diff > DELTA:
-                            volume = get_volume(t1.get('bidVolume'), t2.get('askVolume'))
-                            # Add single arbitrage opportunity: buy on ex2, sell on ex1
-                            results.append((symbol, market_type2, ex2, t2.get('ask'), ex1, t1.get('bid'), volume, diff))
-                            # Log arbitrage opportunity to file
-                            log_to_file(f"{symbol} ({market_type2}/{market_type1}) - BUY on {ex2} at {t2.get('ask')}, SELL on {ex1} at {t1.get('bid')}, Volume: {volume}, Profit: {diff*100:.2f}%")
+                            volume = 0
+                            if ORDERBOOK_ANALYSIS:
+                                # Get real volume from order books
+                                volume = calculate_arbitrage_volume(exchange_objs[ex2], exchange_objs[ex1],symbol, t2.get('ask'), t1.get('bid'))
+                            else:
+                                volume = get_volume(t1.get('bidVolume'), t2.get('askVolume'))
+
+                            if (not ORDERBOOK_ANALYSIS) or volume > 0:
+                                results.append((symbol, market_type2, ex2, t2.get('ask'), ex1, t1.get('bid'), volume, diff))
+                                log_to_file(f"{symbol} ({market_type2}) - BUY on {ex2} at {t2.get('ask')}, SELL on {ex1} at {t1.get('bid')}, Volume: {volume}, Profit: {diff*100:.2f}%")
 
                     # Check arbitrage opportunity: buy on ex1, sell on ex2
                     if not (t2.get('bid') is None or t1.get('ask') is None):
                         diff = (t2.get('bid') - t1.get('ask')) / t1.get('ask')
                         if diff > DELTA:
-                            volume = get_volume(t2.get('bidVolume'), t1.get('askVolume'))
-                            # Add single arbitrage opportunity: buy on ex1, sell on ex2
-                            results.append((symbol, market_type1, ex1, t1.get('ask'), ex2, t2.get('bid'), volume, diff))
-                            # Log arbitrage opportunity to file
-                            log_to_file(f"{symbol} ({market_type1}/{market_type2}) - BUY on {ex1} at {t1.get('ask')}, SELL on {ex2} at {t2.get('bid')}, Volume: {volume}, Profit: {diff*100:.2f}%")
+                            volume = 0
+                            if ORDERBOOK_ANALYSIS:
+                                # Get real volume from order books
+                                volume = calculate_arbitrage_volume(exchange_objs[ex1], exchange_objs[ex2],symbol, t1.get('ask'), t2.get('bid'))
+                            else:
+                                volume = get_volume(t2.get('bidVolume'), t1.get('askVolume'))
+
+                            if (not ORDERBOOK_ANALYSIS) or volume > 0: 
+                                results.append((symbol, market_type1, ex1, t1.get('ask'), ex2, t2.get('bid'), volume, diff))
+                                log_to_file(f"{symbol} ({market_type1}) - BUY on {ex1} at {t1.get('ask')}, SELL on {ex2} at {t2.get('bid')}, Volume: {volume}, Profit: {diff*100:.2f}%")
                 
                 # Sort results by profitability
                 results.sort(key=lambda x: x[7], reverse=True)
